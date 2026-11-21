@@ -3,6 +3,8 @@ import { randomUUID } from 'node:crypto';
 import { CatalogService } from '../catalog/catalog.service.js';
 import { ORDER_REPOSITORY } from './order.repository.js';
 import type { Order, OrderRepository } from './order.repository.js';
+import { EventsPublisher } from './events.publisher.js';
+
 
 const ALLOWED: Record<string, string[]> = {
   PLACED: ['COOKING', 'CANCELLED'],
@@ -19,6 +21,7 @@ export class OrdersService {
   constructor(
     @Inject(ORDER_REPOSITORY) private readonly orders: OrderRepository,
     private readonly catalog: CatalogService,
+    private readonly events: EventsPublisher,
   ) {}
 
   async place(restaurantId: number, items: string[], key?: string) {
@@ -33,6 +36,7 @@ export class OrdersService {
 
     const order: Order = { id: randomUUID(), status: 'PLACED', restaurantId, items };
     await this.orders.save(order);
+    this.events.publish('OrderPlaced', { orderId: order.id, restaurantId, items });
     
     if (key) {
       this.idempotency.set(key, order.id);
